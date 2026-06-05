@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: scholarflow-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: scholarflow
+    ports:
+      - "5432:5432"
+    volumes:
+      - scholarflow_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  scholarflow_postgres_data:

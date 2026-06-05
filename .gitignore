@@ -1,0 +1,22 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+.env
+
+# Backend storage
+backend/uploads/
+backend/storage/chroma/
+
+# Node
+node_modules/
+dist/
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/

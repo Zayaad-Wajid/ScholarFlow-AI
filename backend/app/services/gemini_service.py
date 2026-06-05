@@ -1,0 +1,2 @@
+"""Gemini model integration service."""
+
