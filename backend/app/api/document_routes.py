@@ -8,14 +8,22 @@ from app.core.security import get_current_user
 from app.db.models import Document, ResearchProject, User
 from app.db.schemas import (
     DeleteResponse,
+    DocumentIndexResponse,
     DocumentListResponse,
     DocumentProcessResponse,
     DocumentResponse,
 )
 from app.db.session import get_db
+from app.services.chroma_service import (
+    add_documents,
+    delete_document_vectors,
+    has_document_vectors,
+)
+from app.services.embedding_service import build_document_chunks, embed_texts
 from app.services.pdf_service import (
     build_text_preview,
     delete_pdf_file,
+    extract_pdf_pages_text,
     extract_pdf_text,
     save_pdf_file,
 )
@@ -150,7 +158,7 @@ def process_document(
         db.commit()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to extract text from PDF",
+            detail="Failed to process PDF",
         ) from exc
 
     document.extracted_text = extracted_text
@@ -167,6 +175,72 @@ def process_document(
     )
 
 
+@router.post("/{document_id}/index", response_model=DocumentIndexResponse)
+def index_document(
+    document_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> DocumentIndexResponse:
+    document = get_document_or_404(document_id, current_user, db)
+
+    if document.status not in {"processed", "indexed"}:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Document must be processed before indexing",
+        )
+
+    try:
+        if has_document_vectors(current_user.id, document.project_id, document.id):
+            document.status = "indexed"
+            db.commit()
+            return DocumentIndexResponse(
+                document_id=document.id,
+                indexed_chunks=0,
+                collection_name=f"user_{current_user.id}_project_{document.project_id}",
+                status=document.status,
+            )
+
+        pages, _ = extract_pdf_pages_text(document.file_path)
+        chunks = build_document_chunks(pages=pages, document_id=document.id)
+        if not chunks:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No chunks available for indexing",
+            )
+
+        chunk_texts = [str(chunk["chunk_text"]) for chunk in chunks]
+        embeddings = embed_texts(chunk_texts)
+        if not embeddings:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Missing embeddings for indexing",
+            )
+
+        indexed_chunks = add_documents(
+            user_id=current_user.id,
+            project_id=document.project_id,
+            document_id=document.id,
+            chunks=chunks,
+            embeddings=embeddings,
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to index document in ChromaDB",
+        ) from exc
+
+    document.status = "indexed"
+    db.commit()
+    return DocumentIndexResponse(
+        document_id=document.id,
+        indexed_chunks=indexed_chunks,
+        collection_name=f"user_{current_user.id}_project_{document.project_id}",
+        status=document.status,
+    )
+
+
 @router.delete("/{document_id}", response_model=DeleteResponse)
 def delete_document(
     document_id: int,
@@ -176,11 +250,17 @@ def delete_document(
     document = get_document_or_404(document_id, current_user, db)
 
     try:
+        delete_document_vectors(current_user.id, document.project_id, document.id)
         delete_pdf_file(document.file_path)
     except OSError as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to delete PDF file",
+        ) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete document vectors",
         ) from exc
 
     db.delete(document)

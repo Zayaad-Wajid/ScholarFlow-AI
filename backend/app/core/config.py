@@ -24,6 +24,16 @@ class Settings(BaseSettings):
     )
 
     upload_dir: str = Field(default="./uploads", alias="UPLOAD_DIR")
+    chroma_persist_dir: str = Field(
+        default="./storage/chroma",
+        alias="CHROMA_PERSIST_DIR",
+    )
+    embedding_model_name: str = Field(
+        default="all-MiniLM-L6-v2",
+        alias="EMBEDDING_MODEL_NAME",
+    )
+    text_chunk_size: int = Field(default=1000, alias="TEXT_CHUNK_SIZE")
+    text_chunk_overlap: int = Field(default=200, alias="TEXT_CHUNK_OVERLAP")
     cors_origins: list[str] = Field(
         default=[
             "http://localhost:5173",
@@ -44,6 +54,20 @@ class Settings(BaseSettings):
     def parse_cors_origins(cls, value: str | list[str]) -> list[str]:
         if isinstance(value, str):
             return [origin.strip() for origin in value.split(",") if origin.strip()]
+        return value
+
+    @field_validator("text_chunk_size")
+    @classmethod
+    def validate_chunk_size(cls, value: int) -> int:
+        if value <= 0:
+            raise ValueError("TEXT_CHUNK_SIZE must be greater than 0")
+        return value
+
+    @field_validator("text_chunk_overlap")
+    @classmethod
+    def validate_chunk_overlap(cls, value: int) -> int:
+        if value < 0:
+            raise ValueError("TEXT_CHUNK_OVERLAP cannot be negative")
         return value
 
 

@@ -112,6 +112,32 @@ class DocumentProcessResponse(BaseModel):
     extracted_text_preview: str
 
 
+class DocumentIndexResponse(BaseModel):
+    document_id: int
+    indexed_chunks: int
+    collection_name: str
+    status: str
+
+
+class RetrievalRequest(BaseModel):
+    project_id: int
+    query: str = Field(min_length=1)
+    top_k: int = Field(default=5, ge=1, le=20)
+
+
+class RetrievalResult(BaseModel):
+    document_id: int
+    chunk_id: str
+    page_number: int | None = None
+    score: float
+    chunk_text: str
+
+
+class RetrievalResponse(BaseModel):
+    query: str
+    results: list[RetrievalResult]
+
+
 class SourceBase(BaseModel):
     project_id: int
     document_id: int | None = None

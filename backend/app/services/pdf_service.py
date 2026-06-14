@@ -57,6 +57,24 @@ def extract_pdf_text(file_path: str) -> tuple[str, int]:
     return extracted_text, page_count
 
 
+def extract_pdf_pages_text(file_path: str) -> tuple[list[dict[str, int | str]], int]:
+    """Extract text grouped by PDF page for chunk metadata."""
+    path = Path(file_path)
+    if not path.exists():
+        raise FileNotFoundError("Stored PDF file was not found")
+
+    pages: list[dict[str, int | str]] = []
+    with fitz.open(path) as document:
+        page_count = document.page_count
+        for page_index, page in enumerate(document, start=1):
+            page_text = page.get_text("text")
+            clean_text = page_text.strip() if page_text else ""
+            if clean_text:
+                pages.append({"page_number": page_index, "text": clean_text})
+
+    return pages, page_count
+
+
 def delete_pdf_file(file_path: str) -> None:
     path = Path(file_path)
     if path.exists():

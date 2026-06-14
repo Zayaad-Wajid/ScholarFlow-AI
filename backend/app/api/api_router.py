@@ -8,6 +8,7 @@ from app.api import (
     document_routes,
     report_routes,
     research_routes,
+    search_routes,
 )
 from app.core.config import settings
 
@@ -29,3 +30,4 @@ api_router.include_router(research_routes.router, prefix="/research", tags=["res
 api_router.include_router(document_routes.router, prefix="/documents", tags=["documents"])
 api_router.include_router(chat_routes.router, prefix="/chat", tags=["chat"])
 api_router.include_router(report_routes.router, prefix="/reports", tags=["reports"])
+api_router.include_router(search_routes.router, prefix="/search", tags=["search"])
