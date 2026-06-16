@@ -2,11 +2,16 @@
 
 from functools import lru_cache
 from pathlib import Path
+import re
 from typing import Any
 
 import chromadb
 
 from app.core.config import settings
+
+
+class ChromaServiceError(Exception):
+	"""Raised when ChromaDB operations fail."""
 
 
 def _build_collection_name(user_id: int, project_id: int) -> str:
@@ -23,11 +28,14 @@ def get_chroma_client() -> Any:
 
 def create_collection(user_id: int, project_id: int) -> Any:
 	"""Create or return a project-scoped collection for a user."""
-	client = get_chroma_client()
-	return client.get_or_create_collection(
-		name=_build_collection_name(user_id=user_id, project_id=project_id),
-		metadata={"hnsw:space": "cosine"},
-	)
+	try:
+		client = get_chroma_client()
+		return client.get_or_create_collection(
+			name=_build_collection_name(user_id=user_id, project_id=project_id),
+			metadata={"hnsw:space": "cosine"},
+		)
+	except Exception as exc:
+		raise ChromaServiceError("Failed to create or open Chroma collection") from exc
 
 
 def get_collection(user_id: int, project_id: int) -> Any:
@@ -48,53 +56,62 @@ def add_documents(
 	if not chunks:
 		return 0
 
-	collection = get_collection(user_id=user_id, project_id=project_id)
-	ids = [chunk["chunk_id"] for chunk in chunks]
-	documents = [chunk["chunk_text"] for chunk in chunks]
+	ids = [str(chunk["chunk_id"]) for chunk in chunks]
+	documents = [str(chunk["chunk_text"]) for chunk in chunks]
 	metadatas = [
 		{
-			"user_id": user_id,
-			"project_id": project_id,
-			"document_id": document_id,
-			"chunk_id": chunk["chunk_id"],
-			"page_number": chunk["page_number"],
-			"chunk_index": chunk["chunk_index"],
-			"chunk_text": chunk["chunk_text"],
+			"user_id": int(user_id),
+			"project_id": int(project_id),
+			"document_id": int(document_id),
+			"chunk_id": str(chunk["chunk_id"]),
+			"page_number": int(chunk["page_number"]),
+			"chunk_index": int(chunk["chunk_index"]),
+			"chunk_text": str(chunk["chunk_text"]),
 		}
 		for chunk in chunks
 	]
 
-	collection.upsert(
-		ids=ids,
-		documents=documents,
-		embeddings=embeddings,
-		metadatas=metadatas,
-	)
+	try:
+		collection = get_collection(user_id=user_id, project_id=project_id)
+		collection.upsert(
+			ids=ids,
+			documents=documents,
+			embeddings=embeddings,
+			metadatas=metadatas,
+		)
+	except Exception as exc:
+		raise ChromaServiceError("Failed to store vectors in ChromaDB") from exc
 	return len(chunks)
 
 
 def has_document_vectors(user_id: int, project_id: int, document_id: int) -> bool:
 	"""Check whether document vectors are already present in the collection."""
-	collection = get_collection(user_id=user_id, project_id=project_id)
-	result = collection.get(where={"document_id": document_id}, limit=1)
-	ids = result.get("ids") or []
-	return len(ids) > 0
+	try:
+		collection = get_collection(user_id=user_id, project_id=project_id)
+		result = collection.get(where={"document_id": int(document_id)}, limit=1)
+		ids = result.get("ids") or []
+		return len(ids) > 0
+	except Exception as exc:
+		raise ChromaServiceError("Failed to check existing vectors") from exc
 
 
 def delete_document_vectors(user_id: int, project_id: int, document_id: int) -> None:
 	"""Delete all vectors for one document."""
-	collection = get_collection(user_id=user_id, project_id=project_id)
-	collection.delete(where={"document_id": document_id})
+	try:
+		collection = get_collection(user_id=user_id, project_id=project_id)
+		collection.delete(where={"document_id": int(document_id)})
+	except Exception as exc:
+		raise ChromaServiceError("Failed to delete document vectors") from exc
 
 
 def delete_project_vectors(user_id: int, project_id: int) -> None:
 	"""Delete all vectors for one project in the user's collection."""
-	client = get_chroma_client()
-	collection_name = _build_collection_name(user_id=user_id, project_id=project_id)
 	try:
+		client = get_chroma_client()
+		collection_name = _build_collection_name(user_id=user_id, project_id=project_id)
 		client.delete_collection(name=collection_name)
-	except Exception:
-		return
+	except Exception as exc:
+		raise ChromaServiceError("Failed to delete project vector collection") from exc
 
 
 def similarity_search(
@@ -102,34 +119,76 @@ def similarity_search(
 	project_id: int,
 	query_embedding: list[float],
 	top_k: int = 5,
+	query_text: str | None = None,
 ) -> list[dict[str, Any]]:
 	"""Run semantic similarity search and return normalized results."""
-	collection = get_collection(user_id=user_id, project_id=project_id)
-	result = collection.query(
-		query_embeddings=[query_embedding],
-		n_results=top_k,
-		where={"user_id": user_id, "project_id": project_id},
-	)
+	if not query_embedding:
+		raise ValueError("Query embedding cannot be empty")
+	if top_k <= 0:
+		raise ValueError("top_k must be greater than 0")
+
+	try:
+		collection = get_collection(user_id=user_id, project_id=project_id)
+		result = collection.query(
+			query_embeddings=[query_embedding],
+			n_results=top_k,
+			where={
+				"$and": [
+					{"user_id": int(user_id)},
+					{"project_id": int(project_id)},
+				]
+			},
+		)
+	except Exception as exc:
+		raise ChromaServiceError("Failed to run similarity search") from exc
 
 	documents = result.get("documents", [[]])[0]
 	metadatas = result.get("metadatas", [[]])[0]
 	distances = result.get("distances", [[]])[0]
 
 	items: list[dict[str, Any]] = []
+	query_terms: set[str] = set()
+	if query_text:
+		query_terms = {
+			term
+			for term in re.findall(r"[a-z0-9]+", query_text.lower())
+			if len(term) > 2
+		}
+
 	for index in range(len(documents)):
 		distance = distances[index] if index < len(distances) else None
-		score = None if distance is None else 1.0 / (1.0 + float(distance))
+		semantic_score = None if distance is None else 1.0 / (1.0 + float(distance))
 		metadata = metadatas[index] if index < len(metadatas) else {}
+		chunk_text = str(documents[index])
+
+		lexical_score = 0.0
+		if query_terms and chunk_text:
+			chunk_terms = {
+				term
+				for term in re.findall(r"[a-z0-9]+", chunk_text.lower())
+				if len(term) > 2
+			}
+			if chunk_terms:
+				lexical_score = len(query_terms & chunk_terms) / len(query_terms)
+
+		if semantic_score is None:
+			score = lexical_score
+		else:
+			# Keep semantic ranking primary, with a small lexical boost for precision.
+			score = (semantic_score * 0.85) + (lexical_score * 0.15)
+
 		items.append(
 			{
 				"document_id": metadata.get("document_id"),
 				"chunk_id": metadata.get("chunk_id"),
 				"page_number": metadata.get("page_number"),
 				"chunk_index": metadata.get("chunk_index"),
-				"chunk_text": documents[index],
+				"chunk_text": chunk_text,
 				"score": score,
 			}
 		)
+
+	items.sort(key=lambda item: float(item.get("score") or 0.0), reverse=True)
 
 	return items
 

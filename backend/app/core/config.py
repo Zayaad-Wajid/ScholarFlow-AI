@@ -32,6 +32,9 @@ class Settings(BaseSettings):
         default="all-MiniLM-L6-v2",
         alias="EMBEDDING_MODEL_NAME",
     )
+    gemini_api_key: str | None = Field(default=None, alias="GEMINI_API_KEY")
+    gemini_model: str = Field(default="gemini-1.5-flash", alias="GEMINI_MODEL")
+    temperature: float = Field(default=0.2, alias="TEMPERATURE")
     text_chunk_size: int = Field(default=1000, alias="TEXT_CHUNK_SIZE")
     text_chunk_overlap: int = Field(default=200, alias="TEXT_CHUNK_OVERLAP")
     cors_origins: list[str] = Field(
@@ -68,6 +71,13 @@ class Settings(BaseSettings):
     def validate_chunk_overlap(cls, value: int) -> int:
         if value < 0:
             raise ValueError("TEXT_CHUNK_OVERLAP cannot be negative")
+        return value
+
+    @field_validator("temperature")
+    @classmethod
+    def validate_temperature(cls, value: float) -> float:
+        if value < 0 or value > 1:
+            raise ValueError("TEMPERATURE must be between 0 and 1")
         return value
 
 

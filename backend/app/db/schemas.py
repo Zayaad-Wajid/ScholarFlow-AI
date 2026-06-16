@@ -69,6 +69,20 @@ class ResearchProjectListResponse(BaseModel):
     count: int
 
 
+class ResearchStartRequest(BaseModel):
+    project_id: int
+    query: str = Field(min_length=1)
+    top_k: int = Field(default=5, ge=1, le=20)
+
+
+class ResearchStartResponse(BaseModel):
+    research_plan: dict[str, Any]
+    answer: str
+    critique: str
+    citations: list[dict[str, Any]]
+    sources_used: int
+
+
 class DeleteResponse(BaseModel):
     message: str
 
@@ -175,6 +189,26 @@ class ChatMessageRead(ChatMessageBase):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class ChatAskRequest(BaseModel):
+    project_id: int
+    question: str = Field(min_length=1)
+    top_k: int = Field(default=5, ge=1, le=20)
+
+
+class ChatSource(BaseModel):
+    document_id: int
+    chunk_id: str
+    page_number: int | None = None
+    similarity_score: float
+    document_name: str | None = None
+
+
+class ChatAskResponse(BaseModel):
+    answer: str
+    sources: list[ChatSource]
+    retrieval_metadata: dict[str, Any]
 
 
 class ReportBase(BaseModel):

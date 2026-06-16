@@ -1,6 +1,7 @@
 """Embedding generation and text chunking service."""
 
 from functools import lru_cache
+import re
 
 from sentence_transformers import SentenceTransformer
 
@@ -31,31 +32,61 @@ def chunk_text(
 	if not normalized:
 		return []
 
+	sentences = [
+		sentence.strip()
+		for sentence in re.split(r"(?<=[.!?])\s+", normalized)
+		if sentence.strip()
+	]
+	if not sentences:
+		return []
+
 	chunks: list[str] = []
-	start = 0
-	total_length = len(normalized)
+	current_chunk_sentences: list[str] = []
+	current_length = 0
 
-	while start < total_length:
-		end = min(start + size, total_length)
+	for sentence in sentences:
+		sentence_length = len(sentence)
 
-		if end < total_length:
-			search_start = start + int(size * 0.6)
-			boundary_space = normalized.rfind(" ", search_start, end)
-			boundary_period = normalized.rfind(".", search_start, end)
-			boundary = max(boundary_space, boundary_period)
-			if boundary > start:
-				end = boundary + 1
+		# If one sentence is too long, hard-wrap it by words.
+		if sentence_length > size:
+			words = sentence.split(" ")
+			for word in words:
+				candidate = f"{(' '.join(current_chunk_sentences)).strip()} {word}".strip()
+				if len(candidate) > size and current_chunk_sentences:
+					chunks.append(" ".join(current_chunk_sentences).strip())
+					current_chunk_sentences = [word]
+					current_length = len(word)
+				else:
+					current_chunk_sentences.append(word)
+					current_length = len(" ".join(current_chunk_sentences))
+			continue
 
-		chunk = normalized[start:end].strip()
-		if chunk:
-			chunks.append(chunk)
+		candidate_length = sentence_length if not current_chunk_sentences else current_length + 1 + sentence_length
+		if candidate_length <= size:
+			current_chunk_sentences.append(sentence)
+			current_length = candidate_length
+			continue
 
-		if end >= total_length:
-			break
+		chunks.append(" ".join(current_chunk_sentences).strip())
 
-		start = max(end - overlap, start + 1)
+		# Keep trailing sentences up to overlap budget.
+		overlap_sentences: list[str] = []
+		overlap_length = 0
+		for previous_sentence in reversed(current_chunk_sentences):
+			added_length = len(previous_sentence) if overlap_length == 0 else overlap_length + 1 + len(previous_sentence)
+			if added_length > overlap:
+				break
+			overlap_sentences.insert(0, previous_sentence)
+			overlap_length = added_length
 
-	return chunks
+		current_chunk_sentences = overlap_sentences + [sentence]
+		current_length = len(" ".join(current_chunk_sentences))
+
+	if current_chunk_sentences:
+		chunks.append(" ".join(current_chunk_sentences).strip())
+
+	# Ensure no empty chunks are returned.
+	return [chunk for chunk in chunks if chunk]
 
 
 def build_document_chunks(

@@ -8,7 +8,7 @@ from app.core.security import get_current_user
 from app.db.models import ResearchProject, User
 from app.db.schemas import RetrievalRequest, RetrievalResponse, RetrievalResult
 from app.db.session import get_db
-from app.services.chroma_service import similarity_search
+from app.services.chroma_service import ChromaServiceError, similarity_search
 from app.services.embedding_service import embed_text
 
 router = APIRouter()
@@ -32,14 +32,32 @@ def retrieve_chunks(
             detail="Research project not found",
         )
 
+    query_text = payload.query.strip()
+    if not query_text:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Query cannot be empty",
+        )
+
     try:
-        query_embedding = embed_text(payload.query)
+        query_embedding = embed_text(query_text)
         hits = similarity_search(
             user_id=current_user.id,
             project_id=payload.project_id,
             query_embedding=query_embedding,
             top_k=payload.top_k,
+            query_text=query_text,
         )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+    except ChromaServiceError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(exc),
+        ) from exc
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -47,7 +65,7 @@ def retrieve_chunks(
         ) from exc
 
     if not hits:
-        return RetrievalResponse(query=payload.query, results=[])
+        return RetrievalResponse(query=query_text, results=[])
 
     results = [
         RetrievalResult(
@@ -61,4 +79,4 @@ def retrieve_chunks(
         if hit.get("document_id") is not None and hit.get("chunk_id") is not None
     ]
 
-    return RetrievalResponse(query=payload.query, results=results)
+    return RetrievalResponse(query=query_text, results=results)

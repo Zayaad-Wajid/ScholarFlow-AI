@@ -15,6 +15,7 @@ from app.db.schemas import (
 )
 from app.db.session import get_db
 from app.services.chroma_service import (
+    ChromaServiceError,
     add_documents,
     delete_document_vectors,
     has_document_vectors,
@@ -215,6 +216,11 @@ def index_document(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Missing embeddings for indexing",
             )
+        if len(embeddings) != len(chunks):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Missing embeddings for one or more chunks",
+            )
 
         indexed_chunks = add_documents(
             user_id=current_user.id,
@@ -223,6 +229,16 @@ def index_document(
             chunks=chunks,
             embeddings=embeddings,
         )
+    except ChromaServiceError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(exc),
+        ) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
     except HTTPException:
         raise
     except Exception as exc:
@@ -256,6 +272,11 @@ def delete_document(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to delete PDF file",
+        ) from exc
+    except ChromaServiceError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(exc),
         ) from exc
     except Exception as exc:
         raise HTTPException(

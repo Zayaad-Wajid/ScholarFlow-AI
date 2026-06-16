@@ -12,9 +12,17 @@ from app.db.schemas import (
     ResearchProjectCreate,
     ResearchProjectListResponse,
     ResearchProjectResponse,
+    ResearchStartRequest,
+    ResearchStartResponse,
     ResearchProjectUpdate,
 )
 from app.db.session import get_db
+from app.graphs.research_graph import run_research_workflow
+from app.graphs.state import (
+    ResearchWorkflowExecutionError,
+    ResearchWorkflowNotFoundError,
+    ResearchWorkflowValidationError,
+)
 
 router = APIRouter()
 
@@ -110,3 +118,41 @@ def delete_project(
     db.delete(project)
     db.commit()
     return DeleteResponse(message="Research project deleted successfully")
+
+
+@router.post("/start", response_model=ResearchStartResponse)
+def start_research(
+    payload: ResearchStartRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> ResearchStartResponse:
+    try:
+        final_response = run_research_workflow(
+            db=db,
+            user_id=current_user.id,
+            project_id=payload.project_id,
+            query=payload.query,
+            top_k=payload.top_k,
+        )
+    except ResearchWorkflowNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+    except ResearchWorkflowValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+    except ResearchWorkflowExecutionError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(exc),
+        ) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to execute research workflow",
+        ) from exc
+
+    return ResearchStartResponse(**final_response)
