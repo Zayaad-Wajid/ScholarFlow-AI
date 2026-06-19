@@ -1,6 +1,7 @@
-"""Request and response schemas."""
+﻿"""Request and response schemas."""
 
 from datetime import datetime
+from enum import Enum
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -211,20 +212,48 @@ class ChatAskResponse(BaseModel):
     retrieval_metadata: dict[str, Any]
 
 
+class ReportType(str, Enum):
+    SUMMARY = "summary"
+    LITERATURE_REVIEW = "literature_review"
+    KEY_FINDINGS = "key_findings"
+
+
 class ReportBase(BaseModel):
-    project_id: int
-    title: str
+    title: str = Field(min_length=1, max_length=255)
+    report_type: ReportType
+    topic: str = Field(min_length=1, max_length=255)
     content: str
-    status: str = "draft"
+    status: str = Field(default="completed", max_length=50)
 
 
 class ReportCreate(ReportBase):
+    project_id: int
+
+
+class ReportGenerateRequest(BaseModel):
+    project_id: int
+    report_type: ReportType
+    topic: str | None = Field(default=None, min_length=1, max_length=255)
+    top_k: int = Field(default=8, ge=1, le=20)
+
+
+class ReportCreateRequest(ReportGenerateRequest):
     pass
 
 
-class ReportRead(ReportBase):
+class ReportResponse(ReportBase):
     id: int
+    user_id: int
+    project_id: int
     created_at: datetime
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+ReportRead = ReportResponse
+
+
+class ReportListResponse(BaseModel):
+    reports: list[ReportResponse]
+    count: int

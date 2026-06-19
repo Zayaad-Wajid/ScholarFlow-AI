@@ -1,4 +1,4 @@
-"""Database models."""
+﻿"""Database models."""
 
 from datetime import datetime
 from typing import Any
@@ -30,6 +30,10 @@ class User(Base):
     )
 
     projects: Mapped[list["ResearchProject"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    reports: Mapped[list["Report"]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
     )
@@ -175,14 +179,17 @@ class Report(Base):
     __tablename__ = "reports"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
     project_id: Mapped[int] = mapped_column(
         ForeignKey("research_projects.id"),
         nullable=False,
         index=True,
     )
     title: Mapped[str] = mapped_column(String(255), nullable=False)
+    report_type: Mapped[str] = mapped_column(String(50), nullable=False, default="summary")
+    topic: Mapped[str] = mapped_column(String(255), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    status: Mapped[str] = mapped_column(String(50), default="draft", nullable=False)
+    status: Mapped[str] = mapped_column(String(50), default="completed", nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
@@ -195,4 +202,5 @@ class Report(Base):
         nullable=False,
     )
 
+    user: Mapped["User"] = relationship(back_populates="reports")
     project: Mapped["ResearchProject"] = relationship(back_populates="reports")
