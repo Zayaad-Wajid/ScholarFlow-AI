@@ -1,4 +1,5 @@
 ﻿import { useState } from 'react'
+import { BriefcaseBusiness, Sparkles } from 'lucide-react'
 
 const INITIAL_FORM = {
   title: '',
@@ -40,11 +41,15 @@ export default function ProjectForm({ onSubmit, busy }) {
   }
 
   return (
-    <form className="panel stack-sm" onSubmit={handleSubmit}>
-      <div className="panel-heading">
+    <form className="panel stack-md panel-tinted" onSubmit={handleSubmit}>
+      <div className="panel-heading form-hero-heading">
+        <div className="hero-icon-badge">
+          <BriefcaseBusiness size={18} />
+        </div>
         <div>
           <p className="eyebrow">New project</p>
-          <h2>Create research project</h2>
+          <h2>Create research workspace</h2>
+          <p className="muted-text">Start a focused workspace for papers, questions, and polished deliverables.</p>
         </div>
       </div>
 
@@ -72,14 +77,19 @@ export default function ProjectForm({ onSubmit, busy }) {
         <span>Description</span>
         <textarea
           name="description"
-          rows="4"
+          rows="5"
           value={form.description}
           onChange={handleChange}
-          placeholder="Capture the scope, intended papers, or expected questions."
+          placeholder="Capture the scope, intended source set, or the questions this workspace should answer."
         />
       </label>
 
       {error ? <p className="form-error">{error}</p> : null}
+
+      <div className="form-footer-note">
+        <Sparkles size={15} />
+        <span>Projects become the anchor for uploads, grounded Q&A, Tavily research, and report generation.</span>
+      </div>
 
       <button type="submit" className="primary-button" disabled={busy}>
         {busy ? 'Creating...' : 'Create project'}

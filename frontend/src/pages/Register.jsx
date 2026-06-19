@@ -1,6 +1,8 @@
 ﻿import { Link, useNavigate } from 'react-router-dom'
 import { useMemo, useState } from 'react'
+import { NotebookPen, Sparkles, UserRoundPlus, Waypoints } from 'lucide-react'
 
+import heroImage from '../assets/hero.png'
 import Alert from '../components/ui/Alert'
 import { useAuth } from '../context/AuthContext'
 
@@ -44,16 +46,64 @@ export default function Register() {
       return
     }
 
-    navigate('/dashboard', { replace: true })
+    navigate('/login', {
+      replace: true,
+      state: {
+        registered: true,
+        email: form.email.trim(),
+      },
+    })
   }
 
   return (
-    <div className="auth-page">
-      <form className="auth-card stack-md" onSubmit={handleSubmit}>
-        <div>
-          <p className="eyebrow">ScholarFlow AI</p>
-          <h1>Create account</h1>
-          <p className="muted-text">Set up your workspace for PDF research and grounded reporting.</p>
+    <div className="auth-page auth-layout">
+      <section className="auth-showcase" style={{ backgroundImage: `linear-gradient(180deg, rgba(3, 7, 18, 0.42), rgba(3, 7, 18, 0.72)), url(${heroImage})` }}>
+        <div className="auth-showcase-inner">
+          <div className="auth-brand-row">
+            <span className="brand-glyph auth-brand-glyph">
+              <NotebookPen size={18} />
+            </span>
+            <div>
+              <strong>ScholarFlow AI</strong>
+              <p>Production-style research workspace for document-grounded analysis.</p>
+            </div>
+          </div>
+
+          <div className="stack-md auth-copy-block">
+            <p className="eyebrow auth-eyebrow">Create workspace</p>
+            <h1>Set up an account for structured research work.</h1>
+            <p>
+              Build projects, upload papers, ask grounded questions, and generate publication-style outputs from one clean environment.
+            </p>
+          </div>
+
+          <div className="auth-points">
+            <div className="auth-point-row">
+              <Waypoints size={16} />
+              <span>Project-based organization for repeated research workflows</span>
+            </div>
+            <div className="auth-point-row">
+              <Sparkles size={16} />
+              <span>RAG answers, Tavily research, and Gemini-powered synthesis</span>
+            </div>
+            <div className="auth-point-row">
+              <UserRoundPlus size={16} />
+              <span>Personal workspace that persists reports, documents, and context</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <form className="auth-card stack-md auth-form-panel" onSubmit={handleSubmit}>
+        <div className="stack-sm">
+          <div className="hero-icon-badge">
+            <UserRoundPlus size={18} />
+          </div>
+          <div>
+            <p className="eyebrow">ScholarFlow AI</p>
+            <h2>Create account</h2>
+            <p className="muted-text">Set up your workspace for PDF research and grounded reporting.</p>
+          </div>
         </div>
 
         <label className="field">
@@ -93,10 +143,11 @@ export default function Register() {
         <Alert message={error} title="Registration failed" />
 
         <button type="submit" className="primary-button" disabled={isDisabled}>
+          <Sparkles size={16} />
           {busy ? 'Creating account...' : 'Create account'}
         </button>
 
-        <p className="muted-text">
+        <p className="muted-text auth-footer-copy">
           Already registered? <Link to="/login" className="text-link">Sign in</Link>
         </p>
       </form>

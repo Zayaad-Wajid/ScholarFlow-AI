@@ -91,6 +91,15 @@ export const documentApi = {
   },
 }
 
+export const searchApi = {
+  retrieve(payload) {
+    return api.post('/search/retrieve', payload)
+  },
+  web(payload) {
+    return api.post('/search/web', payload)
+  },
+}
+
 export const chatApi = {
   ask(payload) {
     return api.post('/chat/ask', payload)

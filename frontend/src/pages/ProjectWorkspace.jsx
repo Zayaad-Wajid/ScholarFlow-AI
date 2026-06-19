@@ -1,6 +1,6 @@
-﻿import { ArrowLeft, FolderKanban, RefreshCw } from 'lucide-react'
+﻿import { ArrowLeft, FolderKanban, FileText, RefreshCw, ScrollText } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import ChatPanel from '../components/ChatPanel'
 import DocumentPanel from '../components/DocumentPanel'
@@ -54,6 +54,13 @@ export default function ProjectWorkspace() {
   useEffect(() => {
     loadWorkspace(true)
   }, [projectId])
+
+  const workspaceStats = useMemo(() => ([
+    { label: 'Topic', value: project?.topic || 'Not set', icon: FolderKanban },
+    { label: 'Status', value: project?.status || 'Unknown', icon: ScrollText },
+    { label: 'Documents', value: String(documents.length), icon: FileText },
+    { label: 'Reports', value: String(reports.length), icon: ScrollText },
+  ]), [project, documents.length, reports.length])
 
   async function handleUpload(file) {
     try {
@@ -140,9 +147,9 @@ export default function ProjectWorkspace() {
 
   return (
     <div className="stack-lg">
-      <section className="panel stack-md">
+      <section className="panel panel-elevated stack-md workspace-masthead">
         <div className="split-heading workspace-header">
-          <div className="stack-sm">
+          <div className="stack-sm workspace-heading-copy">
             <Link className="text-link back-link" to="/dashboard">
               <ArrowLeft size={16} />
               Back to dashboard
@@ -162,23 +169,16 @@ export default function ProjectWorkspace() {
 
         <Alert message={error} title="Workspace issue" />
 
-        <div className="project-meta-grid">
-          <div className="meta-card">
-            <span>Topic</span>
-            <strong>{project.topic || 'Not set'}</strong>
-          </div>
-          <div className="meta-card">
-            <span>Status</span>
-            <strong>{project.status}</strong>
-          </div>
-          <div className="meta-card">
-            <span>Documents</span>
-            <strong>{documents.length}</strong>
-          </div>
-          <div className="meta-card">
-            <span>Reports</span>
-            <strong>{reports.length}</strong>
-          </div>
+        <div className="workspace-stats-grid">
+          {workspaceStats.map(({ label, value, icon: Icon }) => (
+            <div key={label} className="meta-card workspace-meta-card">
+              <div className="workspace-meta-topline">
+                <Icon size={15} />
+                <span>{label}</span>
+              </div>
+              <strong>{value}</strong>
+            </div>
+          ))}
         </div>
       </section>
 
@@ -201,13 +201,13 @@ export default function ProjectWorkspace() {
         </div>
 
         <div className="stack-lg sticky-column">
-          <section className="panel stack-sm workspace-summary-panel">
+          <section className="panel stack-sm workspace-summary-panel panel-tinted">
             <SectionHeader
               eyebrow="Workspace snapshot"
               title="Project context"
-              description="Use indexed project documents to answer questions and generate reports."
+              description="Use indexed project documents to answer questions and generate production-ready report drafts."
             />
-            <div className="source-row source-grid-row">
+            <div className="source-row source-grid-row workspace-context-card">
               <FolderKanban size={16} />
               <div>
                 <strong>{project.title}</strong>

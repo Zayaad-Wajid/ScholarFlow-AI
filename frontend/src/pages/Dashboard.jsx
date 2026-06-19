@@ -1,6 +1,6 @@
-﻿import { FolderOpen, Plus, Trash2 } from 'lucide-react'
+﻿import { FolderOpen, FolderPlus, Layers3, NotebookTabs, Trash2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import ProjectForm from '../components/ProjectForm'
 import Alert from '../components/ui/Alert'
@@ -43,6 +43,17 @@ export default function Dashboard() {
     loadProjects()
   }, [])
 
+  const dashboardStats = useMemo(() => {
+    const activeCount = projects.filter((project) => project.status === 'active').length
+    const withTopics = projects.filter((project) => project.topic?.trim()).length
+
+    return [
+      { label: 'Total Projects', value: projects.length, icon: Layers3 },
+      { label: 'Active Streams', value: activeCount, icon: FolderOpen },
+      { label: 'Topics Defined', value: withTopics, icon: NotebookTabs },
+    ]
+  }, [projects])
+
   async function handleCreateProject(payload) {
     setBusy(true)
     try {
@@ -73,66 +84,81 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="dashboard-grid">
-      <ProjectForm onSubmit={handleCreateProject} busy={busy} />
-
-      <section className="panel stack-md">
-        <SectionHeader
-          eyebrow="Projects"
-          title="Research dashboard"
-          description="Create and manage project workspaces for papers, RAG Q&A, and reports."
-          aside={<span className="status-pill">{projects.length} total</span>}
-        />
-
-        <Alert message={error} title="Dashboard issue" />
-
-        {loading ? (
-          <LoadingState message="Loading projects..." />
-        ) : projects.length === 0 ? (
-          <EmptyState
-            icon={Plus}
-            title="No research projects yet"
-            description="Create your first project to start uploading papers and generating grounded outputs."
-          />
-        ) : (
-          <div className="card-grid">
-            {projects.map((project) => (
-              <article key={project.id} className="project-card stack-sm">
-                <div className="card-header-row">
-                  <div>
-                    <h3>{project.title}</h3>
-                    <p>{project.topic || 'No topic set'}</p>
-                  </div>
-                  <span className="status-pill">{project.status}</span>
-                </div>
-
-                <p className="muted-text">
-                  {project.description || 'No project description yet.'}
-                </p>
-
-                <div className="meta-row">
-                  <small>Created {formatDate(project.created_at)}</small>
-                </div>
-
-                <div className="inline-actions action-wrap">
-                  <Link className="primary-button link-button" to={`/projects/${project.id}`}>
-                    <FolderOpen size={16} />
-                    Open workspace
-                  </Link>
-                  <button
-                    type="button"
-                    className="danger-button"
-                    onClick={() => setPendingDelete(project)}
-                  >
-                    <Trash2 size={14} />
-                    Delete
-                  </button>
-                </div>
-              </article>
-            ))}
-          </div>
-        )}
+    <div className="stack-lg">
+      <section className="overview-band">
+        {dashboardStats.map(({ label, value, icon: Icon }) => (
+          <article key={label} className="overview-metric">
+            <div className="overview-icon">
+              <Icon size={18} />
+            </div>
+            <div className="stack-xs">
+              <span>{label}</span>
+              <strong>{value}</strong>
+            </div>
+          </article>
+        ))}
       </section>
+
+      <div className="dashboard-grid">
+        <ProjectForm onSubmit={handleCreateProject} busy={busy} />
+
+        <section className="panel stack-md panel-elevated">
+          <SectionHeader
+            eyebrow="Projects"
+            title="Research dashboard"
+            description="Create and manage project workspaces for source collection, grounded Q&A, and report generation."
+            aside={<span className="status-pill status-pill-strong">{projects.length} total</span>}
+          />
+
+          <Alert message={error} title="Dashboard issue" />
+
+          {loading ? (
+            <LoadingState message="Loading projects..." />
+          ) : projects.length === 0 ? (
+            <EmptyState
+              icon={FolderPlus}
+              title="No research projects yet"
+              description="Create your first project to start uploading papers and turning source material into structured research outputs."
+            />
+          ) : (
+            <div className="card-grid project-grid">
+              {projects.map((project) => (
+                <article key={project.id} className="project-card stack-md">
+                  <div className="card-header-row project-card-header">
+                    <div className="stack-xs">
+                      <h3>{project.title}</h3>
+                      <p className="project-topic-line">{project.topic || 'No topic set yet'}</p>
+                    </div>
+                    <span className="status-pill">{project.status}</span>
+                  </div>
+
+                  <p className="muted-text project-description-copy">
+                    {project.description || 'No project description yet.'}
+                  </p>
+
+                  <div className="project-footer-row">
+                    <small>Created {formatDate(project.created_at)}</small>
+                    <div className="inline-actions action-wrap">
+                      <Link className="primary-button link-button" to={`/projects/${project.id}`}>
+                        <FolderOpen size={16} />
+                        Open workspace
+                      </Link>
+                      <button
+                        type="button"
+                        className="danger-button"
+                        onClick={() => setPendingDelete(project)}
+                      >
+                        <Trash2 size={14} />
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
 
       <ConfirmDialog
         open={Boolean(pendingDelete)}

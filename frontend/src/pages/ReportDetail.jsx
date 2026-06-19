@@ -69,20 +69,24 @@ export default function ReportDetail() {
   }
 
   return (
-    <section className="panel stack-lg report-detail-panel">
-      <div className="stack-sm">
+    <section className="panel stack-lg report-detail-panel panel-elevated">
+      <div className="stack-md">
         <Link className="text-link back-link" to={`/projects/${report.project_id}`}>
           <ArrowLeft size={16} />
           Back to workspace
         </Link>
-        <div className="split-heading report-header-block">
-          <div>
-            <p className="eyebrow">Saved report</p>
-            <h2>{report.title}</h2>
-            <p className="muted-text">{report.topic}</p>
+
+        <div className="report-hero">
+          <div className="stack-sm report-hero-copy">
+            <div>
+              <p className="eyebrow">Saved report</p>
+              <h2>{report.title}</h2>
+              <p className="muted-text">{report.topic}</p>
+            </div>
           </div>
-          <div className="stack-xs align-end report-meta-block">
-            <span className="status-pill">{report.report_type.replace('_', ' ')}</span>
+
+          <div className="report-hero-meta stack-sm align-end report-meta-block">
+            <span className="status-pill status-pill-strong">{report.report_type.replace('_', ' ')}</span>
             <small>{formatDate(report.created_at)}</small>
           </div>
         </div>

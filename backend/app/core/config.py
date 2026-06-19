@@ -1,9 +1,13 @@
-"""Application configuration."""
+﻿"""Application configuration."""
 
 from functools import lru_cache
+from pathlib import Path
 
-from pydantic import Field, field_validator
+from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+BASE_DIR = Path(__file__).resolve().parents[2]
+ENV_FILE = BASE_DIR / ".env"
 
 
 class Settings(BaseSettings):
@@ -27,13 +31,18 @@ class Settings(BaseSettings):
     chroma_persist_dir: str = Field(
         default="./storage/chroma",
         alias="CHROMA_PERSIST_DIR",
+        validation_alias=AliasChoices("CHROMA_PERSIST_DIR", "CHROMA_PATH"),
     )
     embedding_model_name: str = Field(
-        default="all-MiniLM-L6-v2",
+        default="sentence-transformers/all-MiniLM-L6-v2",
         alias="EMBEDDING_MODEL_NAME",
+        validation_alias=AliasChoices("EMBEDDING_MODEL_NAME", "LOCAL_EMBEDDING_MODEL"),
     )
     gemini_api_key: str | None = Field(default=None, alias="GEMINI_API_KEY")
-    gemini_model: str = Field(default="gemini-1.5-flash", alias="GEMINI_MODEL")
+    gemini_model: str = Field(default="gemini-2.5-flash", alias="GEMINI_MODEL")
+    tavily_api_key: str | None = Field(default=None, alias="TAVILY_API_KEY")
+    tavily_max_results: int = Field(default=5, alias="TAVILY_MAX_RESULTS")
+    semantic_scholar_api_key: str | None = Field(default=None, alias="SEMANTIC_SCHOLAR_API_KEY")
     temperature: float = Field(default=0.2, alias="TEMPERATURE")
     text_chunk_size: int = Field(default=1000, alias="TEXT_CHUNK_SIZE")
     text_chunk_overlap: int = Field(default=200, alias="TEXT_CHUNK_OVERLAP")
@@ -46,7 +55,7 @@ class Settings(BaseSettings):
     )
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=str(ENV_FILE),
         env_file_encoding="utf-8",
         populate_by_name=True,
         extra="ignore",
@@ -78,6 +87,13 @@ class Settings(BaseSettings):
     def validate_temperature(cls, value: float) -> float:
         if value < 0 or value > 1:
             raise ValueError("TEMPERATURE must be between 0 and 1")
+        return value
+
+    @field_validator("tavily_max_results")
+    @classmethod
+    def validate_tavily_max_results(cls, value: int) -> int:
+        if value < 1 or value > 10:
+            raise ValueError("TAVILY_MAX_RESULTS must be between 1 and 10")
         return value
 
 

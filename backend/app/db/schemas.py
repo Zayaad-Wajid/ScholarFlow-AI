@@ -153,6 +153,27 @@ class RetrievalResponse(BaseModel):
     results: list[RetrievalResult]
 
 
+class WebSearchRequest(BaseModel):
+    project_id: int
+    query: str = Field(min_length=1)
+    max_results: int = Field(default=5, ge=1, le=10)
+    search_depth: str = Field(default="advanced", pattern="^(basic|advanced)$")
+
+
+class WebSearchResult(BaseModel):
+    title: str
+    url: str
+    snippet: str | None = None
+    score: float | None = None
+    source_name: str | None = None
+    published_date: str | None = None
+
+
+class WebSearchResponse(BaseModel):
+    query: str
+    results: list[WebSearchResult]
+
+
 class SourceBase(BaseModel):
     project_id: int
     document_id: int | None = None

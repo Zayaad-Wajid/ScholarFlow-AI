@@ -90,7 +90,7 @@ export function AuthProvider({ children }) {
   async function register(payload) {
     try {
       await authApi.register(payload)
-      return login({ email: payload.email, password: payload.password })
+      return { success: true }
     } catch (error) {
       return {
         success: false,
