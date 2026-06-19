@@ -1,4 +1,4 @@
-"""Document upload and management API routes."""
+﻿"""Document upload and management API routes."""
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy import desc, select
@@ -14,13 +14,6 @@ from app.db.schemas import (
     DocumentResponse,
 )
 from app.db.session import get_db
-from app.services.chroma_service import (
-    ChromaServiceError,
-    add_documents,
-    delete_document_vectors,
-    has_document_vectors,
-)
-from app.services.embedding_service import build_document_chunks, embed_texts
 from app.services.pdf_service import (
     build_text_preview,
     delete_pdf_file,
@@ -182,6 +175,13 @@ def index_document(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> DocumentIndexResponse:
+    from app.services.chroma_service import (
+        ChromaServiceError,
+        add_documents,
+        has_document_vectors,
+    )
+    from app.services.embedding_service import build_document_chunks, embed_texts
+
     document = get_document_or_404(document_id, current_user, db)
 
     if document.status not in {"processed", "indexed"}:
@@ -263,6 +263,8 @@ def delete_document(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> DeleteResponse:
+    from app.services.chroma_service import ChromaServiceError, delete_document_vectors
+
     document = get_document_or_404(document_id, current_user, db)
 
     try:

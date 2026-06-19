@@ -12,15 +12,6 @@ from app.db.schemas import (
     ReportResponse,
 )
 from app.db.session import get_db
-from app.services.report_service import (
-    ReportNotFoundError,
-    ReportServiceError,
-    ReportValidationError,
-    delete_report,
-    generate_project_report,
-    get_report,
-    list_project_reports,
-)
 
 router = APIRouter()
 
@@ -35,6 +26,13 @@ def generate_report(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> ReportResponse:
+    from app.services.report_service import (
+        ReportNotFoundError,
+        ReportServiceError,
+        ReportValidationError,
+        generate_project_report,
+    )
+
     try:
         report = generate_project_report(db=db, current_user=current_user, payload=payload)
     except ReportNotFoundError as exc:
@@ -67,6 +65,8 @@ def read_project_reports(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> ReportListResponse:
+    from app.services.report_service import ReportNotFoundError, list_project_reports
+
     try:
         reports = list_project_reports(db=db, current_user=current_user, project_id=project_id)
     except ReportNotFoundError as exc:
@@ -87,6 +87,8 @@ def read_report(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> ReportResponse:
+    from app.services.report_service import ReportNotFoundError, get_report
+
     try:
         report = get_report(db=db, current_user=current_user, report_id=report_id)
     except ReportNotFoundError as exc:
@@ -104,6 +106,8 @@ def remove_report(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> DeleteResponse:
+    from app.services.report_service import ReportNotFoundError, delete_report
+
     try:
         delete_report(db=db, current_user=current_user, report_id=report_id)
     except ReportNotFoundError as exc:

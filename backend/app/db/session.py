@@ -1,6 +1,7 @@
 ﻿"""Database session management."""
 
 from collections.abc import Generator
+from pathlib import Path
 
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
@@ -12,7 +13,33 @@ class Base(DeclarativeBase):
     pass
 
 
-engine = create_engine(settings.database_url, pool_pre_ping=True)
+def _build_fallback_sqlite_url() -> str:
+    db_path = Path(__file__).resolve().parents[2] / 'storage' / 'scholarflow_dev.db'
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    return f"sqlite:///{db_path.as_posix()}"
+
+
+def _make_engine(database_url: str):
+    connect_args = {"check_same_thread": False} if database_url.startswith("sqlite") else ({"connect_timeout": 2} if database_url.startswith("postgresql") else {})
+    return create_engine(database_url, pool_pre_ping=True, connect_args=connect_args)
+
+
+def _select_engine():
+    primary_engine = _make_engine(settings.database_url)
+
+    if settings.environment != 'development':
+        return primary_engine
+
+    try:
+        with primary_engine.connect() as connection:
+            connection.execute(text('SELECT 1'))
+        return primary_engine
+    except Exception:
+        fallback_url = _build_fallback_sqlite_url()
+        return _make_engine(fallback_url)
+
+
+engine = _select_engine()
 
 SessionLocal = sessionmaker(
     autocommit=False,
@@ -37,6 +64,9 @@ def create_db_and_tables() -> None:
 
 
 def ensure_development_columns() -> None:
+    if engine.dialect.name == 'sqlite':
+        return
+
     inspector = inspect(engine)
     ensure_research_project_columns(inspector)
     ensure_document_columns(inspector)

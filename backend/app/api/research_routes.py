@@ -1,5 +1,4 @@
-
-"""Research workflow API routes."""
+﻿"""Research workflow API routes."""
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import desc, select
@@ -17,12 +16,6 @@ from app.db.schemas import (
     ResearchProjectUpdate,
 )
 from app.db.session import get_db
-from app.graphs.research_graph import run_research_workflow
-from app.graphs.state import (
-    ResearchWorkflowExecutionError,
-    ResearchWorkflowNotFoundError,
-    ResearchWorkflowValidationError,
-)
 
 router = APIRouter()
 
@@ -126,6 +119,13 @@ def start_research(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> ResearchStartResponse:
+    from app.graphs.research_graph import run_research_workflow
+    from app.graphs.state import (
+        ResearchWorkflowExecutionError,
+        ResearchWorkflowNotFoundError,
+        ResearchWorkflowValidationError,
+    )
+
     try:
         final_response = run_research_workflow(
             db=db,

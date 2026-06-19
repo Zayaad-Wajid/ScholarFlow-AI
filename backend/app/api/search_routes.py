@@ -1,4 +1,4 @@
-"""Semantic retrieval API routes."""
+﻿"""Semantic retrieval API routes."""
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
@@ -8,8 +8,6 @@ from app.core.security import get_current_user
 from app.db.models import ResearchProject, User
 from app.db.schemas import RetrievalRequest, RetrievalResponse, RetrievalResult
 from app.db.session import get_db
-from app.services.chroma_service import ChromaServiceError, similarity_search
-from app.services.embedding_service import embed_text
 
 router = APIRouter()
 
@@ -20,6 +18,9 @@ def retrieve_chunks(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> RetrievalResponse:
+    from app.services.chroma_service import ChromaServiceError, similarity_search
+    from app.services.embedding_service import embed_text
+
     project = db.scalar(
         select(ResearchProject).where(
             ResearchProject.id == payload.project_id,
